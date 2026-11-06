@@ -1,0 +1,5 @@
+ARG PYTHON_BASE
+FROM ${PYTHON_BASE}
+RUN python -m pip install --no-cache-dir pip==25.2 pip-tools==7.6.2
+WORKDIR /work
+ENTRYPOINT ["pip-compile", "--resolver=backtracking", "--allow-unsafe"]

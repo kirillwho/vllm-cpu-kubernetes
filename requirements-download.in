@@ -1,0 +1,4 @@
+huggingface-hub
+pip==25.2
+setuptools==80.9.0
+wheel==0.45.1

@@ -1,0 +1,32 @@
+{
+  "kind": "short",
+  "concurrency": 1,
+  "requests": 2,
+  "successes": 2,
+  "failures": 0,
+  "wall_s": 4.753862214000037,
+  "mean_input_tokens": 33,
+  "mean_output_tokens": 32,
+  "ttft_p50_s": 0.1721878590005872,
+  "ttft_p95_s": 0.17539814640049373,
+  "latency_p50_s": 2.3744443200002934,
+  "latency_p95_s": 2.402603160900526,
+  "throughput_req_s": 0.4207105528027372,
+  "throughput_output_tok_s": 13.462737689687591,
+  "rows": [
+    {
+      "ok": true,
+      "ttft_s": 0.16862087300069106,
+      "latency_s": 2.343156719000035,
+      "input_tokens": 33,
+      "output_tokens": 32
+    },
+    {
+      "ok": true,
+      "ttft_s": 0.17575484500048333,
+      "latency_s": 2.4057319210005517,
+      "input_tokens": 33,
+      "output_tokens": 32
+    }
+  ]
+}

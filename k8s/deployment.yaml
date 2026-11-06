@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: llm
+  template:
+    metadata:
+      labels:
+        app: llm
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: download-model
+          image: model-download:local
+          imagePullPolicy: Never
+          env:
+            - name: MODEL_ID
+              valueFrom:
+                configMapKeyRef: {name: llm-config, key: MODEL_ID}
+            - name: MODEL_REVISION
+              valueFrom:
+                configMapKeyRef: {name: llm-config, key: MODEL_REVISION}
+            - name: MODEL_DIR
+              valueFrom:
+                configMapKeyRef: {name: llm-config, key: MODEL_DIR}
+            - name: CACHE_ONLY
+              valueFrom:
+                configMapKeyRef: {name: llm-config, key: CACHE_ONLY}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          volumeMounts:
+            - {name: models, mountPath: /models}
+            - {name: init-tmp, mountPath: /tmp}
+            - {name: hf-secret, mountPath: /run/secrets, readOnly: true}
+      containers:
+        - name: vllm
+          image: vllm-cpu:local
+          imagePullPolicy: Never
+          env:
+            - name: VLLM_CPU_KVCACHE_SPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: llm-config
+                  key: VLLM_CPU_KVCACHE_SPACE
+            - name: VLLM_CPU_OMP_THREADS_BIND
+              valueFrom:
+                configMapKeyRef:
+                  name: llm-config
+                  key: VLLM_CPU_OMP_THREADS_BIND
+            - name: OMP_NUM_THREADS
+              valueFrom:
+                configMapKeyRef: {name: llm-config, key: OMP_NUM_THREADS}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: "4"
+              memory: 5Gi
+            limits:
+              cpu: "4"
+              memory: 6Gi
+          ports:
+            - {name: http, containerPort: 8000}
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            failureThreshold: 180
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+            - {name: shm, mountPath: /dev/shm}
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: api-secret, mountPath: /run/secrets, readOnly: true}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: config
+          configMap:
+            name: llm-config
+            items:
+              - {key: serve.yaml, path: serve.yaml}
+        - name: hf-secret
+          secret:
+            secretName: llm-secrets
+            defaultMode: 0440
+            items:
+              - {key: hf-token, path: hf-token}
+        - name: api-secret
+          secret:
+            secretName: llm-secrets
+            defaultMode: 0440
+            items:
+              - {key: api-token, path: api-token}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: init-tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi

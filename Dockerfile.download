@@ -1,0 +1,12 @@
+ARG PYTHON_BASE
+FROM ${PYTHON_BASE}
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+COPY requirements-download.txt /tmp/requirements.txt
+RUN python -m pip install --no-cache-dir --timeout 120 --retries 5 -r /tmp/requirements.txt \
+    && python -m pip check
+RUN groupadd -g 10001 app && useradd -u 10001 -g 10001 -m app
+COPY --chown=10001:10001 scripts/download.py /app/download.py
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HF_HOME=/tmp/hf HF_HUB_DISABLE_PROGRESS_BARS=1
+USER 10001:10001
+ENTRYPOINT ["python", "/app/download.py"]
